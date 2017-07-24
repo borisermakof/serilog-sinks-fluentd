@@ -19,6 +19,8 @@ namespace Serilog.Sinks.Fluentd
         public bool EmitStackTraceWhenAvailable { get; set; }
         public int BatchPostingLimit { get; set; }
         public TimeSpan Period { get; set; }
+        public string Tag { get; set; }
+        public string MessageTemplateKey { get; set; }
 
         protected FluentdSinkOptions()
         {
@@ -31,6 +33,8 @@ namespace Serilog.Sinks.Fluentd
             EmitStackTraceWhenAvailable = false;
             BatchPostingLimit = 50;
             Period = TimeSpan.FromSeconds(2);
+            Tag = "Tag";
+            MessageTemplateKey = "mt";
         }
 
         public FluentdSinkOptions(string host, int port) : this()

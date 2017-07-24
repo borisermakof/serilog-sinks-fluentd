@@ -66,7 +66,8 @@ namespace Serilog.Sinks.Fluentd
         {
 
             var record = new Dictionary<string, object> {
-                { "Level", logEvent.Level }
+                { "Level", logEvent.Level },
+                { _options.MessageTemplateKey, logEvent.MessageTemplate.Text }
             };
 
             foreach (var log in logEvent.Properties)
@@ -110,7 +111,7 @@ namespace Serilog.Sinks.Fluentd
             {
                 try
                 {
-                    _emitter.Emit(logEvent.Timestamp.UtcDateTime, "Tag", record);
+                    _emitter.Emit(logEvent.Timestamp.UtcDateTime, _options.Tag, record);
                 }
                 catch (Exception)
                 {
