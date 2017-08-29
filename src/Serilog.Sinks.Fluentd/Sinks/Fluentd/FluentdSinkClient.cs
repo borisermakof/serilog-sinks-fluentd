@@ -87,25 +87,6 @@ namespace Serilog.Sinks.Fluentd
                 record.Add("Exception", errorFormatted);
             }
 
-            /*if (_options.EmitStackTraceWhenAvailable)
-            {
-                var transcodedFrames = new List<Dictionary<string, object>>();
-                StackTrace stackTrace = logEvent.StackTrace;
-                foreach (StackFrame frame in stackTrace.GetFrames())
-                {
-                    var transcodedFrame = new Dictionary<string, object>
-                    {
-                        { "filename", frame.GetFileName() },
-                        { "line", frame.GetFileLineNumber() },
-                        { "column", frame.GetFileColumnNumber() },
-                        { "method", frame.GetMethod().ToString() },
-                        { "il_offset", frame.GetILOffset() },
-                        { "native_offset", frame.GetNativeOffset() },
-                    };
-                    transcodedFrames.Add(transcodedFrame);
-                }
-                record.Add("stacktrace", transcodedFrames);
-            }*/
             EnsureConnected();
             if (_emitter != null)
             {
