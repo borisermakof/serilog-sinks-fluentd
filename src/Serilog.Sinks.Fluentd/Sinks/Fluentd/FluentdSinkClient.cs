@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Sockets;
+using System.Threading;
+using Serilog.Debugging;
 using Serilog.Events;
 
 namespace Serilog.Sinks.Fluentd
@@ -9,42 +11,46 @@ namespace Serilog.Sinks.Fluentd
     public class FluentdSinkClient : IDisposable
     {
         private readonly FluentdSinkOptions _options;
-        private readonly TcpClient _tcpClient;
+        private TcpClient _tcpClient;
         private Stream _stream;
         private FluentdEmitter _emitter;
 
         public FluentdSinkClient(FluentdSinkOptions options)
         {
             _options = options;
-            _tcpClient = new TcpClient();
-
-            InitializeTcpClient();
         }
 
         protected void InitializeTcpClient()
         {
-            _tcpClient.NoDelay = _options.NoDelay;
-            _tcpClient.ReceiveBufferSize = _options.ReceiveBufferSize;
-            _tcpClient.SendBufferSize = _options.SendBufferSize;
-            _tcpClient.SendTimeout = _options.SendTimeout;
-            _tcpClient.ReceiveTimeout = _options.SendTimeout;
-            _tcpClient.LingerState = new LingerOption(_options.LingerEnabled, _options.LingerTime);
+            Cleanup();
+
+            _tcpClient = new TcpClient
+            {
+                NoDelay = _options.NoDelay,
+                ReceiveBufferSize = _options.ReceiveBufferSize,
+                SendBufferSize = _options.SendBufferSize,
+                SendTimeout = _options.SendTimeout,
+                ReceiveTimeout = _options.SendTimeout,
+                LingerState = new LingerOption(_options.LingerEnabled, _options.LingerTime)
+            };
+
         }
 
         protected async void EnsureConnected()
         {
             try
             {
-                if (!_tcpClient.Connected)
-                {
-                    await _tcpClient.ConnectAsync(_options.Host, _options.Port);
-                    _stream = _tcpClient.GetStream();
-                    _emitter = new FluentdEmitter(_stream);
-                }
+                if (IsConnected()) return;
+
+                InitializeTcpClient();
+
+                await _tcpClient.ConnectAsync(_options.Host, _options.Port);
+                _stream = _tcpClient.GetStream();
+                _emitter = new FluentdEmitter(_stream);
             }
             catch (Exception ex)
             {
-                var e = ex;
+                SelfLog.WriteLine($"[Serilog.Sinks.Fluentd] Connection exception {ex.Message}\n{ex.StackTrace}");
             }
         }
 
@@ -55,14 +61,16 @@ namespace Serilog.Sinks.Fluentd
                 _stream.Dispose();
                 _stream = null;
             }
-            if (_stream != null)
+            if (_tcpClient != null)
             {
-                _stream.Dispose();
-                _stream = null;
+                _tcpClient.Client.Dispose();
+                _tcpClient = null;
             }
+
+            _emitter = null;
         }
 
-        public void Send(LogEvent logEvent)
+        public void Send(LogEvent logEvent, int retryCount = 1)
         {
 
             var record = new Dictionary<string, object> {
@@ -94,15 +102,46 @@ namespace Serilog.Sinks.Fluentd
                 {
                     _emitter.Emit(logEvent.Timestamp.UtcDateTime, _options.Tag, record);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    SelfLog.WriteLine($"[Serilog.Sinks.Fluentd] Send exception {ex.Message}\n{ex.StackTrace}");
+                    RetrySend(logEvent, retryCount);
                 }
+            }
+            else
+            {
+                RetrySend(logEvent, retryCount);
+            }
+        }
+
+        private void RetrySend(LogEvent logEvent, int retryCount)
+        {
+            if (retryCount < _options.RetryCount)
+            {
+                Thread.Sleep(_options.RetryDelay);
+                SelfLog.WriteLine($"[Serilog.Sinks.Fluentd] Retry send {retryCount + 1}");
+                Send(logEvent, retryCount + 1);
+            }
+            else
+            {
+                SelfLog.WriteLine($"[Serilog.Sinks.Fluentd] Retry count has exceeded limit {_options.RetryCount}. Giving up. Data will be lost");
             }
         }
 
         public void Dispose()
         {
             Cleanup();
+        }
+
+        protected bool IsConnected()
+        {
+            if (_tcpClient == null || !_tcpClient.Connected)
+                return false;
+
+            if (!_tcpClient.Client.Poll(0, SelectMode.SelectWrite) || _tcpClient.Client.Poll(0, SelectMode.SelectError))
+                return false;
+
+            return true;
         }
     }
 }
