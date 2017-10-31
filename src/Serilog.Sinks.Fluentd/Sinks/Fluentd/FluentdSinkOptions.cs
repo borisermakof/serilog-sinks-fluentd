@@ -19,6 +19,15 @@ namespace Serilog.Sinks.Fluentd
         public string Tag { get; set; }
         public string MessageTemplateKey { get; set; }
 
+        /// <summary>
+        /// In case of network related problems, try that amount of times to send message
+        /// </summary>
+        public int RetryCount { get; set; }
+        /// <summary>
+        /// In case of network related problems, this is a delay between attempts
+        /// </summary>
+        public TimeSpan RetryDelay { get; set; }
+
         protected FluentdSinkOptions()
         {
             ReceiveBufferSize = 8192;
@@ -32,6 +41,9 @@ namespace Serilog.Sinks.Fluentd
             Period = TimeSpan.FromSeconds(2);
             Tag = "Tag";
             MessageTemplateKey = "mt";
+
+            RetryCount = 10;
+            RetryDelay = TimeSpan.FromSeconds(1);
         }
 
         public FluentdSinkOptions(string host, int port) : this()
