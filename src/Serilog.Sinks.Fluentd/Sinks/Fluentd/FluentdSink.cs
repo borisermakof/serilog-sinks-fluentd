@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 using Serilog.Events;
 using Serilog.Sinks.PeriodicBatching;
 
@@ -13,10 +14,12 @@ namespace Serilog.Sinks.Fluentd
             _fluentdClient = new FluentdSinkClient(options);
         }
 
-        protected override void EmitBatch(IEnumerable<LogEvent> events)
+        protected override async Task EmitBatchAsync(IEnumerable<LogEvent> events)
         {
             foreach (var logEvent in events)
-                _fluentdClient.Send(logEvent);
+            {
+                await _fluentdClient.SendAsync(logEvent);
+            }
         }
     }
 }

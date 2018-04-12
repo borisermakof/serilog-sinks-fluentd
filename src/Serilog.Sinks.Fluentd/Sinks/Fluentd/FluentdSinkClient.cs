@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net.Sockets;
 using System.Threading;
+using System.Threading.Tasks;
 using Serilog.Debugging;
 using Serilog.Events;
 
@@ -36,7 +37,7 @@ namespace Serilog.Sinks.Fluentd
 
         }
 
-        protected async void EnsureConnected()
+        protected async Task EnsureConnectedAsync()
         {
             try
             {
@@ -45,6 +46,7 @@ namespace Serilog.Sinks.Fluentd
                 InitializeTcpClient();
 
                 await _tcpClient.ConnectAsync(_options.Host, _options.Port);
+
                 _stream = _tcpClient.GetStream();
                 _emitter = new FluentdEmitter(_stream);
             }
@@ -70,7 +72,7 @@ namespace Serilog.Sinks.Fluentd
             _emitter = null;
         }
 
-        public void Send(LogEvent logEvent, int retryCount = 1)
+        public async Task SendAsync(LogEvent logEvent, int retryCount = 1)
         {
 
             var record = new Dictionary<string, object> {
@@ -95,7 +97,8 @@ namespace Serilog.Sinks.Fluentd
                 record.Add("Exception", errorFormatted);
             }
 
-            EnsureConnected();
+            await EnsureConnectedAsync();
+
             if (_emitter != null)
             {
                 try
@@ -105,22 +108,22 @@ namespace Serilog.Sinks.Fluentd
                 catch (Exception ex)
                 {
                     SelfLog.WriteLine($"[Serilog.Sinks.Fluentd] Send exception {ex.Message}\n{ex.StackTrace}");
-                    RetrySend(logEvent, retryCount);
+                    await RetrySendAsync(logEvent, retryCount);
                 }
             }
             else
             {
-                RetrySend(logEvent, retryCount);
+                await RetrySendAsync(logEvent, retryCount);
             }
         }
 
-        private void RetrySend(LogEvent logEvent, int retryCount)
+        private async Task RetrySendAsync(LogEvent logEvent, int retryCount)
         {
             if (retryCount < _options.RetryCount)
             {
                 Thread.Sleep(_options.RetryDelay);
                 SelfLog.WriteLine($"[Serilog.Sinks.Fluentd] Retry send {retryCount + 1}");
-                Send(logEvent, retryCount + 1);
+                await SendAsync(logEvent, retryCount + 1);
             }
             else
             {
