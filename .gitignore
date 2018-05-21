@@ -185,3 +185,4 @@ FakesAssemblies/
 # Dotnet Core
 project.lock.json
 /**/.vs/
+/**/.vscode/

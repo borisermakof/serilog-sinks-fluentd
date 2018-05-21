@@ -28,5 +28,15 @@ namespace Serilog
 
             return loggerSinkConfiguration.Sink(sink, restrictedToMinimumLevel);
         }
+
+        public static LoggerConfiguration Fluentd(
+           this LoggerSinkConfiguration loggerSinkConfiguration,
+           string udsSocketFilePath,
+           LogEventLevel restrictedToMinimumLevel = LogEventLevel.Debug)
+        {
+            var sink = new FluentdSink(new FluentdSinkOptions(udsSocketFilePath));
+
+            return loggerSinkConfiguration.Sink(sink, restrictedToMinimumLevel);
+        }
     }
 }
