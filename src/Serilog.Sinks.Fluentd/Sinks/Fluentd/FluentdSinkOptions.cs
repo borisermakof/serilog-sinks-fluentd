@@ -32,8 +32,8 @@ namespace Serilog.Sinks.Fluentd
 
         protected FluentdSinkOptions()
         {
-            Host = "localhost";
-            Port = 24224;
+            Host = String.Empty;
+            Port = 0;
             ReceiveBufferSize = 8192;
             SendBufferSize = 8192;
             ReceiveTimeout = 1000;
