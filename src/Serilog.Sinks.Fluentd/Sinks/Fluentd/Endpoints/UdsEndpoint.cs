@@ -30,10 +30,7 @@ namespace Serilog.Sinks.Fluentd.Sinks.Fluentd.Endpoints
 
         public bool IsConnected()
         {
-            if (_socketFile == null || !_socketFile.Connected)
-                return false;
-
-            return true;
+            return _socketFile != null && _socketFile.Connected;
         }
 
         public void Dispose()
