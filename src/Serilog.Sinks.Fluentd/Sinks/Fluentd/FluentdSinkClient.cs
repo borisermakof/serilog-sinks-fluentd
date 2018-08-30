@@ -82,7 +82,8 @@ namespace Serilog.Sinks.Fluentd
 
             foreach (var log in logEvent.Properties)
             {
-                record.Add(log.Key, log.Value.ToString());
+                var logValue = PropertyValueSimplifier.Simplify(log.Value);
+                record.Add(log.Key, logValue);
             }
 
             if (logEvent.Exception != null)
