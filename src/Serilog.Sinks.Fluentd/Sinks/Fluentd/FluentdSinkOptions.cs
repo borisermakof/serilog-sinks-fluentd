@@ -52,10 +52,11 @@ namespace Serilog.Sinks.Fluentd
             RetryDelay = TimeSpan.FromSeconds(1);
         }
 
-        public FluentdSinkOptions(string host, int port) : this()
+        public FluentdSinkOptions(string host, int port, string tag = "") : this()
         {
             Host = host;
             Port = port;
+            Tag = tag;
         }
 
         public FluentdSinkOptions(string udsSocketFilePath) : this()
