@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Serilog.Debugging;
 using Serilog.Events;
+using System.Linq;
 
 namespace Serilog.Sinks.Fluentd
 {
@@ -34,7 +35,6 @@ namespace Serilog.Sinks.Fluentd
                 ReceiveTimeout = _options.SendTimeout,
                 LingerState = new LingerOption(_options.LingerEnabled, _options.LingerTime)
             };
-
         }
 
         protected async Task EnsureConnectedAsync()
@@ -63,6 +63,7 @@ namespace Serilog.Sinks.Fluentd
                 _stream.Dispose();
                 _stream = null;
             }
+
             if (_tcpClient != null)
             {
                 _tcpClient.Client.Dispose();
@@ -74,15 +75,22 @@ namespace Serilog.Sinks.Fluentd
 
         public async Task SendAsync(LogEvent logEvent, int retryCount = 1)
         {
-
-            var record = new Dictionary<string, object> {
-                { "Level", logEvent.Level },
-                { _options.MessageTemplateKey, logEvent.MessageTemplate.Text }
+            var record = new Dictionary<string, object>
+            {
+                {"Level", logEvent.Level},
+                {_options.MessageTemplateKey, logEvent.MessageTemplate.Text}
             };
 
             foreach (var log in logEvent.Properties)
             {
-                record.Add(log.Key, log.Value.ToString());
+                if (log.Value is SequenceValue sequenceValue)
+                {
+                    record.Add(log.Key, sequenceValue.Elements.Select(RenderSequenceValue).ToArray());
+                }
+                else
+                {
+                    record.Add(log.Key, log.Value.ToString());
+                }
             }
 
             if (logEvent.Exception != null)
@@ -117,6 +125,8 @@ namespace Serilog.Sinks.Fluentd
             }
         }
 
+        private static object RenderSequenceValue(LogEventPropertyValue x) => (x as ScalarValue)?.Value ?? x.ToString();
+
         private async Task RetrySendAsync(LogEvent logEvent, int retryCount)
         {
             if (retryCount < _options.RetryCount)
@@ -127,7 +137,8 @@ namespace Serilog.Sinks.Fluentd
             }
             else
             {
-                SelfLog.WriteLine($"[Serilog.Sinks.Fluentd] Retry count has exceeded limit {_options.RetryCount}. Giving up. Data will be lost");
+                SelfLog.WriteLine(
+                    $"[Serilog.Sinks.Fluentd] Retry count has exceeded limit {_options.RetryCount}. Giving up. Data will be lost");
             }
         }
 
