@@ -1,18 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Serilog.Debugging;
 using Serilog.Events;
+using Serilog.Sinks.Fluentd.Sinks.Fluentd.Endpoints;
 
 namespace Serilog.Sinks.Fluentd
 {
     public class FluentdSinkClient : IDisposable
     {
         private readonly FluentdSinkOptions _options;
-        private TcpClient _tcpClient;
+        private IEndpoint _endpoint;
         private Stream _stream;
         private FluentdEmitter _emitter;
 
@@ -21,33 +21,35 @@ namespace Serilog.Sinks.Fluentd
             _options = options;
         }
 
-        protected void InitializeTcpClient()
+        protected void InitializeEndpoint()
         {
             Cleanup();
 
-            _tcpClient = new TcpClient
+            if(_options.UseUnixDomainSocketEndpoit)
             {
-                NoDelay = _options.NoDelay,
-                ReceiveBufferSize = _options.ReceiveBufferSize,
-                SendBufferSize = _options.SendBufferSize,
-                SendTimeout = _options.SendTimeout,
-                ReceiveTimeout = _options.SendTimeout,
-                LingerState = new LingerOption(_options.LingerEnabled, _options.LingerTime)
-            };
-
+                _endpoint = new UdsEndpoint(_options);
+            }
+            else
+            {
+                _endpoint = new TcpEndpoint(_options);
+            }
         }
 
         protected async Task EnsureConnectedAsync()
         {
             try
             {
-                if (IsConnected()) return;
+                bool endpointInitialzied = _endpoint?.IsConnected() ?? false;
 
-                InitializeTcpClient();
+                if (endpointInitialzied) {
+                    return;
+                }
 
-                await _tcpClient.ConnectAsync(_options.Host, _options.Port);
+                InitializeEndpoint();
 
-                _stream = _tcpClient.GetStream();
+                await _endpoint.ConnectAsync();
+
+                _stream = _endpoint.GetStream();
                 _emitter = new FluentdEmitter(_stream);
             }
             catch (Exception ex)
@@ -63,10 +65,10 @@ namespace Serilog.Sinks.Fluentd
                 _stream.Dispose();
                 _stream = null;
             }
-            if (_tcpClient != null)
+            if (_endpoint != null)
             {
-                _tcpClient.Client.Dispose();
-                _tcpClient = null;
+                _endpoint.Dispose();
+                _endpoint = null;
             }
 
             _emitter = null;
@@ -134,17 +136,6 @@ namespace Serilog.Sinks.Fluentd
         public void Dispose()
         {
             Cleanup();
-        }
-
-        protected bool IsConnected()
-        {
-            if (_tcpClient == null || !_tcpClient.Connected)
-                return false;
-
-            if (!_tcpClient.Client.Poll(0, SelectMode.SelectWrite) || _tcpClient.Client.Poll(0, SelectMode.SelectError))
-                return false;
-
-            return true;
         }
     }
 }

@@ -18,6 +18,8 @@ namespace Serilog.Sinks.Fluentd
         public TimeSpan Period { get; set; }
         public string Tag { get; set; }
         public string MessageTemplateKey { get; set; }
+        public bool UseUnixDomainSocketEndpoit { get; set; }
+        public string UdsSocketFilePath { get; set; }
 
         /// <summary>
         /// In case of network related problems, try that amount of times to send message
@@ -30,6 +32,8 @@ namespace Serilog.Sinks.Fluentd
 
         protected FluentdSinkOptions()
         {
+            Host = String.Empty;
+            Port = 0;
             ReceiveBufferSize = 8192;
             SendBufferSize = 8192;
             ReceiveTimeout = 1000;
@@ -41,6 +45,8 @@ namespace Serilog.Sinks.Fluentd
             Period = TimeSpan.FromSeconds(2);
             Tag = "Tag";
             MessageTemplateKey = "mt";
+            UseUnixDomainSocketEndpoit = false;
+            UdsSocketFilePath = String.Empty;
 
             RetryCount = 10;
             RetryDelay = TimeSpan.FromSeconds(1);
@@ -50,6 +56,12 @@ namespace Serilog.Sinks.Fluentd
         {
             Host = host;
             Port = port;
+        }
+
+        public FluentdSinkOptions(string udsSocketFilePath) : this()
+        {
+            UseUnixDomainSocketEndpoit = true;
+            UdsSocketFilePath = udsSocketFilePath;
         }
     }
 }

@@ -7,7 +7,7 @@
   <PropertyGroup>
     <Authors>Borys Iermakov</Authors>
     <AssemblyTitle>Serilog.Sinks.Fluentd</AssemblyTitle>
-    <PackageReleaseNotes>0.2.0</PackageReleaseNotes>
+    <PackageReleaseNotes>0.3.0</PackageReleaseNotes>
     <NeutralLanguage>en-US</NeutralLanguage>
     <Description>
       Serilog adapter for Fluentd
