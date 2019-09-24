@@ -34,7 +34,6 @@ namespace Serilog.Sinks.Fluentd
             {
                 _endpoint = new TcpEndpoint(_options);
             }
-
         }
 
         protected async Task EnsureConnectedAsync()
