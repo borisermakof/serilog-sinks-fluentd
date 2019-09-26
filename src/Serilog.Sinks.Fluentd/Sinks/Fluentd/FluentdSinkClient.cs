@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Serilog.Debugging;
@@ -76,15 +77,22 @@ namespace Serilog.Sinks.Fluentd
 
         public async Task SendAsync(LogEvent logEvent, int retryCount = 1)
         {
-
-            var record = new Dictionary<string, object> {
-                { "Level", logEvent.Level },
-                { _options.MessageTemplateKey, logEvent.MessageTemplate.Text }
+            var record = new Dictionary<string, object>
+            {
+                {"Level", logEvent.Level},
+                {_options.MessageTemplateKey, logEvent.MessageTemplate.Text}
             };
 
             foreach (var log in logEvent.Properties)
             {
-                record.Add(log.Key, log.Value.ToString());
+                if (log.Value is SequenceValue sequenceValue)
+                {
+                    record.Add(log.Key, sequenceValue.Elements.Select(RenderSequenceValue).ToArray());
+                }
+                else
+                {
+                    record.Add(log.Key, log.Value.ToString());
+                }
             }
 
             if (logEvent.Exception != null)
@@ -119,6 +127,8 @@ namespace Serilog.Sinks.Fluentd
             }
         }
 
+        private static object RenderSequenceValue(LogEventPropertyValue x) => (x as ScalarValue)?.Value ?? x.ToString();
+
         private async Task RetrySendAsync(LogEvent logEvent, int retryCount)
         {
             if (retryCount < _options.RetryCount)
@@ -129,7 +139,8 @@ namespace Serilog.Sinks.Fluentd
             }
             else
             {
-                SelfLog.WriteLine($"[Serilog.Sinks.Fluentd] Retry count has exceeded limit {_options.RetryCount}. Giving up. Data will be lost");
+                SelfLog.WriteLine(
+                    $"[Serilog.Sinks.Fluentd] Retry count has exceeded limit {_options.RetryCount}. Giving up. Data will be lost");
             }
         }
 
