@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Serilog.Debugging;
 using Serilog.Events;
@@ -80,19 +79,13 @@ namespace Serilog.Sinks.Fluentd
             var record = new Dictionary<string, object>
             {
                 {"Level", logEvent.Level},
-                {_options.MessageTemplateKey, logEvent.MessageTemplate.Text}
+                {_options.MessageTemplateKey, logEvent.MessageTemplate.Text},
+                {_options.MessageKey, logEvent.MessageTemplate.Render(logEvent.Properties, _options.FormatProvider)}
             };
 
             foreach (var log in logEvent.Properties)
             {
-                if (log.Value is SequenceValue sequenceValue)
-                {
-                    record.Add(log.Key, sequenceValue.Elements.Select(RenderSequenceValue).ToArray());
-                }
-                else
-                {
-                    record.Add(log.Key, log.Value.ToString());
-                }
+                record.Add(log.Key, GetRenderedProperty(log.Value));
             }
 
             if (logEvent.Exception != null)
@@ -100,9 +93,11 @@ namespace Serilog.Sinks.Fluentd
                 var exception = logEvent.Exception;
                 var errorFormatted = new Dictionary<string, object>
                 {
-                    {"ExceptionMessage", exception.Message},
-                    {"ExceptionSource", exception.Source},
-                    {"ExceptionStackTrace", exception.StackTrace}
+                    {"Type", exception.GetType().FullName},
+                    {"Message", exception.Message},
+                    {"Source", exception.Source},
+                    {"StackTrace", exception.StackTrace},
+                    {"Details", exception.ToString()}
                 };
                 record.Add("Exception", errorFormatted);
             }
@@ -127,13 +122,44 @@ namespace Serilog.Sinks.Fluentd
             }
         }
 
-        private static object RenderSequenceValue(LogEventPropertyValue x) => (x as ScalarValue)?.Value ?? x.ToString();
+        private object GetRenderedProperty(LogEventPropertyValue value)
+        {
+            switch (value)
+            {
+                case SequenceValue sequenceValue:
+                    return sequenceValue.Elements.Select(GetRenderedSequenceValue).ToArray();
+                case StructureValue structureValue:
+                    return structureValue.Properties
+                        .ToDictionary(x => x.Name, x => GetRenderedProperty(x.Value));
+                case ScalarValue scalarValue:
+                    switch (scalarValue.Value)
+                    {
+                        case null:
+                            return null;
+                        case string str:
+                            return str;
+                        case DateTime dt:
+                            return dt.ToString("o");
+                        case DateTimeOffset dt:
+                            return dt.ToString("o");
+                        case var numericScalar when numericScalar.GetType().IsNumericType():
+                            return numericScalar;
+                        case var unknownScalar:
+                            return string.Format(_options.FormatProvider, "{0}", unknownScalar);
+                    }
+                default:
+                    return value.ToString(null, _options.FormatProvider);
+            }
+        }
+
+        private object GetRenderedSequenceValue(LogEventPropertyValue value) => 
+            (value as ScalarValue)?.Value ?? value.ToString(null, _options.FormatProvider);
 
         private async Task RetrySendAsync(LogEvent logEvent, int retryCount)
         {
             if (retryCount < _options.RetryCount)
             {
-                Thread.Sleep(_options.RetryDelay);
+                await Task.Delay(_options.RetryDelay);
                 SelfLog.WriteLine($"[Serilog.Sinks.Fluentd] Retry send {retryCount + 1}");
                 await SendAsync(logEvent, retryCount + 1);
             }

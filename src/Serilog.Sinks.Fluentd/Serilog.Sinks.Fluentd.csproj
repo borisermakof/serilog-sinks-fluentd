@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFrameworks>netstandard1.3;net45</TargetFrameworks>
@@ -7,7 +7,7 @@
   <PropertyGroup>
     <Authors>Borys Iermakov</Authors>
     <AssemblyTitle>Serilog.Sinks.Fluentd</AssemblyTitle>
-    <PackageReleaseNotes>0.3.0</PackageReleaseNotes>
+    <PackageReleaseNotes>0.4.0</PackageReleaseNotes>
     <NeutralLanguage>en-US</NeutralLanguage>
     <Description>
       Serilog adapter for Fluentd
@@ -20,9 +20,9 @@
   </PropertyGroup>
   
   <ItemGroup>
-    <PackageReference Include="MsgPack.Cli" Version="0.7.0" />
+    <PackageReference Include="MsgPack.Cli" Version="1.0.1" />
     <PackageReference Include="Serilog" Version="2.0.0" />
-    <PackageReference Include="Serilog.Sinks.PeriodicBatching" Version="2.0.0" />
+    <PackageReference Include="Serilog.Sinks.PeriodicBatching" Version="2.2.0" />
   </ItemGroup>
 
 </Project>

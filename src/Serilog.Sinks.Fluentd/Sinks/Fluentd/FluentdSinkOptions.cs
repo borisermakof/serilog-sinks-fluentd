@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 
 namespace Serilog.Sinks.Fluentd
 {
@@ -18,6 +19,8 @@ namespace Serilog.Sinks.Fluentd
         public TimeSpan Period { get; set; }
         public string Tag { get; set; }
         public string MessageTemplateKey { get; set; }
+        public string MessageKey { get; set; }
+        public IFormatProvider FormatProvider { get; set; }
         public bool UseUnixDomainSocketEndpoit { get; set; }
         public string UdsSocketFilePath { get; set; }
 
@@ -45,6 +48,8 @@ namespace Serilog.Sinks.Fluentd
             Period = TimeSpan.FromSeconds(2);
             Tag = "Tag";
             MessageTemplateKey = "mt";
+            MessageKey = "m";
+            FormatProvider = CultureInfo.InvariantCulture;
             UseUnixDomainSocketEndpoit = false;
             UdsSocketFilePath = String.Empty;
 
