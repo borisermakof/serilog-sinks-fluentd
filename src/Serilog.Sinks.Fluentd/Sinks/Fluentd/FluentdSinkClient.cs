@@ -37,25 +37,18 @@ namespace Serilog.Sinks.Fluentd
 
         protected async Task EnsureConnectedAsync()
         {
-            try
-            {
-                bool endpointInitialzied = _endpoint?.IsConnected() ?? false;
+            bool endpointInitialzied = _endpoint?.IsConnected() ?? false;
 
-                if (endpointInitialzied) {
-                    return;
-                }
-
-                InitializeEndpoint();
-
-                await _endpoint.ConnectAsync();
-
-                _stream = _endpoint.GetStream();
-                _emitter = new FluentdEmitter(_stream);
+            if (endpointInitialzied) {
+                return;
             }
-            catch (Exception ex)
-            {
-                SelfLog.WriteLine($"[Serilog.Sinks.Fluentd] Connection exception {ex.Message}\n{ex.StackTrace}");
-            }
+
+            InitializeEndpoint();
+
+            await _endpoint.ConnectAsync();
+
+            _stream = _endpoint.GetStream();
+            _emitter = new FluentdEmitter(_stream);
         }
 
         protected void Cleanup()
@@ -74,7 +67,7 @@ namespace Serilog.Sinks.Fluentd
             _emitter = null;
         }
 
-        public async Task SendAsync(LogEvent logEvent, int retryCount = 1)
+        public async Task SendAsync(LogEvent logEvent)
         {
             var record = new Dictionary<string, object>
             {
@@ -102,23 +95,26 @@ namespace Serilog.Sinks.Fluentd
                 record.Add("Exception", errorFormatted);
             }
 
-            await EnsureConnectedAsync();
-
-            if (_emitter != null)
+            for (var retryIndex = 1; ; retryIndex++)
             {
                 try
                 {
+                    await EnsureConnectedAsync();
                     _emitter.Emit(logEvent.Timestamp.UtcDateTime, _options.Tag, record);
+                    break;
                 }
                 catch (Exception ex)
                 {
-                    SelfLog.WriteLine($"[Serilog.Sinks.Fluentd] Send exception {ex.Message}\n{ex.StackTrace}");
-                    await RetrySendAsync(logEvent, retryCount);
+                    SelfLog.WriteLine($"[Serilog.Sinks.Fluentd] exception {ex.Message}\n{ex.StackTrace}");
+                    if (retryIndex >= _options.RetryCount)
+                    {
+                        SelfLog.WriteLine(
+                            $"[Serilog.Sinks.Fluentd] Retry count has exceeded limit {_options.RetryCount}. Giving up. Data will be lost");
+                        break;
+                    }
+                    await Task.Delay(_options.RetryDelay);
+                    SelfLog.WriteLine($"[Serilog.Sinks.Fluentd] Retry send {retryIndex}");
                 }
-            }
-            else
-            {
-                await RetrySendAsync(logEvent, retryCount);
             }
         }
 
@@ -154,21 +150,6 @@ namespace Serilog.Sinks.Fluentd
 
         private object GetRenderedSequenceValue(LogEventPropertyValue value) => 
             (value as ScalarValue)?.Value ?? value.ToString(null, _options.FormatProvider);
-
-        private async Task RetrySendAsync(LogEvent logEvent, int retryCount)
-        {
-            if (retryCount < _options.RetryCount)
-            {
-                await Task.Delay(_options.RetryDelay);
-                SelfLog.WriteLine($"[Serilog.Sinks.Fluentd] Retry send {retryCount + 1}");
-                await SendAsync(logEvent, retryCount + 1);
-            }
-            else
-            {
-                SelfLog.WriteLine(
-                    $"[Serilog.Sinks.Fluentd] Retry count has exceeded limit {_options.RetryCount}. Giving up. Data will be lost");
-            }
-        }
 
         public void Dispose()
         {
