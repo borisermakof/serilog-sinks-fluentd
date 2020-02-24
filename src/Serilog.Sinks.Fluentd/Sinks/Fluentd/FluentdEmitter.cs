@@ -22,10 +22,10 @@ namespace Serilog.Sinks.Fluentd
 
         public void Emit(DateTime timestamp, string tag, IDictionary<string, object> data)
         {
-            var unixTimestamp = timestamp.ToUniversalTime().Subtract(UnixEpoch).Ticks / 10000000;
+            var floatTimestamp = (double)timestamp.ToUniversalTime().Subtract(UnixEpoch).Ticks / 10000000;
             _packer.PackArrayHeader(3);
             _packer.PackString(tag, Encoding.UTF8);
-            _packer.Pack((ulong)unixTimestamp);
+            _packer.Pack(floatTimestamp);
             _packer.Pack(data, _serializationContext);
         }
     }
