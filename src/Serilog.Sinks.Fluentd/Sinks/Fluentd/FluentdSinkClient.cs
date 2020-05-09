@@ -15,17 +15,19 @@ namespace Serilog.Sinks.Fluentd
         private IEndpoint _endpoint;
         private Stream _stream;
         private FluentdEmitter _emitter;
+        private DateTime _lastConnectAttempt;
 
         public FluentdSinkClient(FluentdSinkOptions options)
         {
             _options = options;
+            _lastConnectAttempt = DateTime.MinValue;
         }
 
         protected void InitializeEndpoint()
         {
             Cleanup();
 
-            if(_options.UseUnixDomainSocketEndpoit)
+            if (_options.UseUnixDomainSocketEndpoit)
             {
                 _endpoint = new UdsEndpoint(_options);
             }
@@ -39,9 +41,18 @@ namespace Serilog.Sinks.Fluentd
         {
             try
             {
+                if (UsefulTimeExpired())
+                    Cleanup();
+
                 bool endpointInitialzied = _endpoint?.IsConnected() ?? false;
 
-                if (endpointInitialzied) {
+                if (endpointInitialzied)
+                {
+                    return;
+                }
+
+                if (CanNotConnect())
+                {
                     return;
                 }
 
@@ -49,11 +60,14 @@ namespace Serilog.Sinks.Fluentd
 
                 await _endpoint.ConnectAsync();
 
+
+                _lastConnectAttempt = DateTime.Now;
                 _stream = _endpoint.GetStream();
                 _emitter = new FluentdEmitter(_stream);
             }
             catch (Exception ex)
             {
+                _lastConnectAttempt = DateTime.Now;
                 SelfLog.WriteLine($"[Serilog.Sinks.Fluentd] Connection exception {ex.Message}\n{ex.StackTrace}");
             }
         }
@@ -112,6 +126,17 @@ namespace Serilog.Sinks.Fluentd
                 }
                 catch (Exception ex)
                 {
+
+                    try
+                    {
+                        if (TryReconnect())
+                            Cleanup();
+                    }
+                    catch (Exception)
+                    {
+                        SelfLog.WriteLine($"[Serilog.Sinks.Fluentd] InitializeEndpoint exception {ex.Message}\n{ex.StackTrace}");
+                    }
+
                     SelfLog.WriteLine($"[Serilog.Sinks.Fluentd] Send exception {ex.Message}\n{ex.StackTrace}");
                     await RetrySendAsync(logEvent, retryCount);
                 }
@@ -152,7 +177,7 @@ namespace Serilog.Sinks.Fluentd
             }
         }
 
-        private object GetRenderedSequenceValue(LogEventPropertyValue value) => 
+        private object GetRenderedSequenceValue(LogEventPropertyValue value) =>
             (value as ScalarValue)?.Value ?? value.ToString(null, _options.FormatProvider);
 
         private async Task RetrySendAsync(LogEvent logEvent, int retryCount)
@@ -168,6 +193,21 @@ namespace Serilog.Sinks.Fluentd
                 SelfLog.WriteLine(
                     $"[Serilog.Sinks.Fluentd] Retry count has exceeded limit {_options.RetryCount}. Giving up. Data will be lost");
             }
+        }
+
+        private bool TryReconnect()
+        {
+            return _options.ReconnetRetryPeriod.TotalMilliseconds > 0 && (DateTime.Now - _lastConnectAttempt) > _options.ReconnetRetryPeriod;
+        }
+
+        private bool CanNotConnect()
+        {
+            return _options.ReconnetRetryPeriod.TotalMilliseconds > 0 && (DateTime.Now - _lastConnectAttempt) <= _options.ReconnetRetryPeriod;
+        }
+
+        private bool UsefulTimeExpired()
+        {
+            return _options.ConnectionUsefulPeriod.TotalSeconds > 0 && (DateTime.Now - _lastConnectAttempt) > _options.ConnectionUsefulPeriod;
         }
 
         public void Dispose()
