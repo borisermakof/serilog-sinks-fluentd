@@ -1,10 +1,11 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 
 namespace Serilog.Sinks.Fluentd.Sinks.Fluentd.Endpoints
 {
-    class TcpEndpoint : IEndpoint
+    internal class TcpEndpoint : IEndpoint
     {
         private readonly FluentdSinkOptions _options;
         private TcpClient _tcpClient;
@@ -48,6 +49,7 @@ namespace Serilog.Sinks.Fluentd.Sinks.Fluentd.Endpoints
         public void Dispose()
         {
             _tcpClient.Client.Dispose();
+            ((IDisposable)_tcpClient).Dispose();
             _tcpClient = null;
         }
     }

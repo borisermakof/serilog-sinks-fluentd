@@ -23,6 +23,8 @@ namespace Serilog.Sinks.Fluentd
         public IFormatProvider FormatProvider { get; set; }
         public bool UseUnixDomainSocketEndpoit { get; set; }
         public string UdsSocketFilePath { get; set; }
+        public TimeSpan ReconnetRetryPeriod { get; set; }
+        public TimeSpan ConnectionUsefulPeriod { get; set; }
 
         /// <summary>
         /// In case of network related problems, try that amount of times to send message
@@ -35,7 +37,7 @@ namespace Serilog.Sinks.Fluentd
 
         protected FluentdSinkOptions()
         {
-            Host = String.Empty;
+            Host = string.Empty;
             Port = 0;
             ReceiveBufferSize = 8192;
             SendBufferSize = 8192;
@@ -51,10 +53,12 @@ namespace Serilog.Sinks.Fluentd
             MessageKey = "m";
             FormatProvider = CultureInfo.InvariantCulture;
             UseUnixDomainSocketEndpoit = false;
-            UdsSocketFilePath = String.Empty;
+            UdsSocketFilePath = string.Empty;
 
             RetryCount = 10;
             RetryDelay = TimeSpan.FromSeconds(1);
+            ReconnetRetryPeriod = TimeSpan.FromSeconds(0);
+            ConnectionUsefulPeriod = TimeSpan.FromSeconds(0);
         }
 
         public FluentdSinkOptions(string host, int port, string tag = "") : this()
