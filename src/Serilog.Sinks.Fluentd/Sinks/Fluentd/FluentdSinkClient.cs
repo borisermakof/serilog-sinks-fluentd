@@ -78,7 +78,7 @@ namespace Serilog.Sinks.Fluentd
         {
             var record = new Dictionary<string, object>
             {
-                {"Level", logEvent.Level},
+                {"Level", logEvent?.Level.ToString()},
                 {_options.MessageTemplateKey, logEvent.MessageTemplate.Text},
                 {_options.MessageKey, logEvent.MessageTemplate.Render(logEvent.Properties, _options.FormatProvider)}
             };
@@ -108,7 +108,7 @@ namespace Serilog.Sinks.Fluentd
             {
                 try
                 {
-                    _emitter.Emit(logEvent.Timestamp.UtcDateTime, _options.Tag, record);
+                    await _emitter.EmitAsync(logEvent.Timestamp.UtcDateTime, _options.Tag, record);
                 }
                 catch (Exception ex)
                 {
