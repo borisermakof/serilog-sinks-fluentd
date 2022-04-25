@@ -28,6 +28,7 @@ namespace Serilog.Sinks.Fluentd
         /// In case of network related problems, try that amount of times to send message
         /// </summary>
         public int RetryCount { get; set; }
+
         /// <summary>
         /// In case of network related problems, this is a delay between attempts
         /// </summary>
@@ -51,17 +52,29 @@ namespace Serilog.Sinks.Fluentd
             MessageKey = "m";
             FormatProvider = CultureInfo.InvariantCulture;
             UseUnixDomainSocketEndpoit = false;
-            UdsSocketFilePath = String.Empty;
+            UdsSocketFilePath = string.Empty;
 
             RetryCount = 10;
             RetryDelay = TimeSpan.FromSeconds(1);
         }
 
-        public FluentdSinkOptions(string host, int port, string tag = "") : this()
+        public FluentdSinkOptions(
+            string host,
+            int port,
+            string tag = "",
+            bool lingerEnabled = true,
+            int lingerTime = 1000,
+            int retryCount = 10,
+            TimeSpan? retryDelay = null)
+            : this()
         {
             Host = host;
             Port = port;
             Tag = tag;
+            LingerEnabled = lingerEnabled;
+            LingerTime = lingerTime;
+            RetryCount = retryCount;
+            RetryDelay = retryDelay ?? TimeSpan.FromSeconds(1);
         }
 
         public FluentdSinkOptions(string udsSocketFilePath) : this()
